@@ -15,7 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
+        with:
+          dotnet-version: '8.0.x'
       - run: dotnet restore
       - run: dotnet publish -c Release -o publish
       - uses: actions/upload-artifact@v4
@@ -26,7 +27,7 @@ jobs:
   deploy:
     name: Deploy to IIS (Dev)
     needs: build
-    runs-on: [self-hosted, windows, x64, windows-dev]  # must match your runner’s labels
+    runs-on: [self-hosted, windows, x64, windows-dev]  # match your runner labels
     env:
       ARTIFACT_DIR: C:\actions\api-publish
       HEALTH_URL:  http://localhost:8080/health
@@ -44,7 +45,9 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Artifact dir: $env:ARTIFACT_DIR"
-          Get-ChildItem -Recurse $env:ARTIFACT_DIR | Select FullName,Length,LastWriteTime | Sort FullName
+          Get-ChildItem -Recurse $env:ARTIFACT_DIR |
+            Select-Object FullName,Length,LastWriteTime |
+            Sort-Object FullName
 
       - name: Deploy via PowerShell
         shell: pwsh
@@ -52,4 +55,4 @@ jobs:
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
           pwsh -File "${{ github.workspace }}\infra\deploy-api.ps1" `
                 -ArtifactDir "${{ env.ARTIFACT_DIR }}" `
-                -HealthUrl   "${{ env:HEALTH_URL }}"
+                -HealthUrl   "${{ env.HEALTH_URL }}"
