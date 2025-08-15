@@ -2,11 +2,8 @@ name: Deploy Dev (API)
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "api/**"
-      - "infra/**"
-      - ".github/workflows/deploy-dev.yml"
+    branches: [main, master]
+  workflow_dispatch: {}
 
 jobs:
   build:
@@ -18,8 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
+        with: { dotnet-version: '8.0.x' }
       - run: dotnet restore
       - run: dotnet publish -c Release -o publish
       - uses: actions/upload-artifact@v4
@@ -30,7 +26,7 @@ jobs:
   deploy:
     name: Deploy to IIS (Dev)
     needs: build
-    runs-on: [self-hosted, windows, x64, windows-dev]   # <- match your runner labels
+    runs-on: [self-hosted, windows, x64, windows-dev]  # must match your runner’s labels
     env:
       ARTIFACT_DIR: C:\actions\api-publish
       HEALTH_URL:  http://localhost:8080/health
@@ -44,10 +40,16 @@ jobs:
       - name: Checkout repo (for deploy script)
         uses: actions/checkout@v4
 
+      - name: List downloaded files (debug)
+        shell: pwsh
+        run: |
+          Write-Host "Artifact dir: $env:ARTIFACT_DIR"
+          Get-ChildItem -Recurse $env:ARTIFACT_DIR | Select FullName,Length,LastWriteTime | Sort FullName
+
       - name: Deploy via PowerShell
         shell: pwsh
         run: |
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
           pwsh -File "${{ github.workspace }}\infra\deploy-api.ps1" `
                 -ArtifactDir "${{ env.ARTIFACT_DIR }}" `
-                -HealthUrl   "${{ env.HEALTH_URL }}"
+                -HealthUrl   "${{ env:HEALTH_URL }}"
