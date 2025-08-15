@@ -5,6 +5,13 @@ on:
     branches: [main, master]
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-dev-api
+  cancel-in-progress: true
+
 jobs:
   build:
     name: Build & Publish API
@@ -23,11 +30,14 @@ jobs:
         with:
           name: api-publish
           path: api/publish
+          if-no-files-found: error
 
   deploy:
     name: Deploy to IIS (Dev)
     needs: build
-    runs-on: [self-hosted, Windows, X64, windows-dev]  # match your runner labels
+    # Minimal label match; if your runner requires custom labels, change to:
+    # runs-on: [self-hosted, windows, x64, windows-dev]
+    runs-on: [self-hosted, windows]
     env:
       ARTIFACT_DIR: C:\actions\api-publish
       HEALTH_URL:  http://localhost:8080/health
@@ -42,17 +52,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: List downloaded files (debug)
-        shell: pwsh
+        shell: powershell
         run: |
+          Write-Host "PS version:"; $PSVersionTable
           Write-Host "Artifact dir: $env:ARTIFACT_DIR"
           Get-ChildItem -Recurse $env:ARTIFACT_DIR |
             Select-Object FullName,Length,LastWriteTime |
             Sort-Object FullName
 
-      - name: Deploy via PowerShell
-        shell: pwsh
+      - name: Deploy to IIS
+        shell: powershell
         run: |
           Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-          pwsh -File "${{ github.workspace }}\infra\deploy-api.ps1" `
-                -ArtifactDir "${{ env.ARTIFACT_DIR }}" `
-                -HealthUrl   "${{ env.HEALTH_URL }}"
+          & "${{ github.workspace }}\infra\deploy-api.ps1" `
+            -ArtifactDir "${{ env.ARTIFACT_DIR }}" `
+            -HealthUrl   "${{ env.HEALTH_URL }}"
