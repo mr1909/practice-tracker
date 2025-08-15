@@ -36,7 +36,7 @@ app.MapGet("/weatherforecast", () =>
 .WithName("GetWeatherForecast")
 .WithOpenApi();
 
-app.MapGet("/health", () => Results.Ok("OK3")).WithName("Health");
+app.MapGet("/health", () => Results.Ok("OK4")).WithName("Health");
 
 
 app.Run();

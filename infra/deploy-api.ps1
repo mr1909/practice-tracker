@@ -6,6 +6,10 @@ param(
   [string]$HealthUrl = "http://localhost:8080/health"
 )
 
+if (-not (Test-Path $ArtifactDir) -or ((Get-ChildItem $ArtifactDir -Recurse -File | Measure).Count -eq 0)) {
+  throw "ArtifactDir '$ArtifactDir' is missing or empty. Did the build upload 'api-publish'?"
+}
+
 Write-Host "Stopping site $SiteName..."
 Import-Module WebAdministration
 Stop-Website -Name $SiteName -ErrorAction SilentlyContinue
