@@ -1,0 +1,53 @@
+name: Deploy Dev (API)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "infra/**"
+      - ".github/workflows/deploy-dev.yml"
+
+jobs:
+  build:
+    name: Build & Publish API
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet restore
+      - run: dotnet publish -c Release -o publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: api-publish
+          path: api/publish
+
+  deploy:
+    name: Deploy to IIS (Dev)
+    needs: build
+    runs-on: [self-hosted, windows, x64, windows-dev]   # <- match your runner labels
+    env:
+      ARTIFACT_DIR: C:\actions\api-publish
+      HEALTH_URL:  http://localhost:8080/health
+    steps:
+      - name: Download publish artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: api-publish
+          path: ${{ env.ARTIFACT_DIR }}
+
+      - name: Checkout repo (for deploy script)
+        uses: actions/checkout@v4
+
+      - name: Deploy via PowerShell
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+          pwsh -File "${{ github.workspace }}\infra\deploy-api.ps1" `
+                -ArtifactDir "${{ env.ARTIFACT_DIR }}" `
+                -HealthUrl   "${{ env.HEALTH_URL }}"
