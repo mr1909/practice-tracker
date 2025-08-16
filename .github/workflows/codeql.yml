@@ -1,10 +1,16 @@
 name: CodeQL
+
 on:
-  push: {branches: [main]}
-  pull_request: {branches: [main]}
-  schedule: [{cron: '0 3 * * 0'}]
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 3 * * 0'
+
 jobs:
   analyze:
+    name: CodeQL (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -12,10 +18,25 @@ jobs:
       security-events: write
     strategy:
       fail-fast: false
-      matrix: { language: ['csharp', 'javascript'] }
+      matrix:
+        language: ['csharp', 'javascript']
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
-        with: { languages: ${{ matrix.language }} }
-      - uses: github/codeql-action/autobuild@v3
-      - uses: github/codeql-action/analyze@v3
+
+      # Needed so Autobuild can compile the API when language=csharp
+      - name: Setup .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
